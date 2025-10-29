@@ -1,0 +1,27 @@
+# Core Deep Learning
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Transformers and Models
+transformers>=4.30.0
+accelerate>=0.20.0
+
+# CLIP (installed via transformers, but explicit for clarity)
+# openai-clip  # Alternative: install via pip install git+https://github.com/openai/CLIP.git
+
+# Web Interface
+gradio>=4.0.0
+
+# Image Processing
+Pillow>=9.0.0
+
+# Data Processing
+pandas>=1.5.0
+numpy>=1.24.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Utilities
+tqdm>=4.65.0
