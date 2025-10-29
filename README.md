@@ -259,11 +259,11 @@ If you use this project in your research, please cite:
 
 ```bibtex
 @misc{food-recipe-generator,
-  author = {Your Name},
+  author = {Weijun Luo},
   title = {Food to Recipe Generator using CLIP + Transformer},
   year = {2025},
   publisher = {GitHub},
-  url = {https://github.com/YOUR_USERNAME/CLIP-Transformer}
+  url = {https://github.com/arenasluo/CLIP-Transformer}
 }
 ```
 
