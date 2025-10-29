@@ -6,6 +6,12 @@ A deep learning system that generates cooking recipes from food images using CLI
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
+## 🚀 **Try the Live Demo!**
+
+**👉 [Launch Web App](https://huggingface.co/spaces/arenasluo/food-recipe-generator) 👈**
+
+Upload a food image and get an AI-generated recipe instantly!
+
 ## Overview
 
 This project implements a cross-modal translation model that:
@@ -100,6 +106,21 @@ CLIP+Transformer/
 ```
 
 ## Usage
+
+### 🌐 Try the Live Demo (No Setup Required!)
+
+**The easiest way to try the model:**
+
+👉 **[https://huggingface.co/spaces/arenasluo/food-recipe-generator](https://huggingface.co/spaces/arenasluo/food-recipe-generator)**
+
+1. Click the link above
+2. Upload a food image
+3. Click "Generate Recipe"
+4. Get your AI-generated recipe!
+
+No installation, no setup - just try it in your browser! 🚀
+
+---
 
 ### Training the Model
 
