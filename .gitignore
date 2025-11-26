@@ -24,6 +24,7 @@ wheels/
 venv/
 ENV/
 env/
+.venv
 
 # Jupyter Notebook
 .ipynb_checkpoints/
@@ -35,23 +36,30 @@ env/
 *.ckpt
 *.pkl
 recipe_generator_model.pt
+trained_model*
+saved_model/
 # Exclude model directories (too large for git)
 qwen_recipe_model_final/
 qwen_recipe_output/
 janus_recipe_model_final/
 janus_recipe_output/
 *.safetensors
-# Keep .bin files for configs but exclude large model binaries
-training_args.bin
+*.bin
 
 # Data files - exclude dataset files
 *.csv
 *.zip
 food_images/
+data/
+datasets/
 RecipeNLG_dataset.csv
 RecipeNLG_dataset.csv.zip
 Food Ingredients and Recipe Dataset with Image Name Mapping.csv
 recipe_image_mapping.csv
+*.jpg
+*.jpeg
+*.png
+*.gif
 
 # IDE
 .vscode/
@@ -70,6 +78,8 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+wandb/
 
 # Cache
 .cache/
@@ -79,3 +89,11 @@ Thumbs.db
 training_metrics/
 *.png
 evaluation_metrics.json
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# uv lock
+uv.lock

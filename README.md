@@ -1,6 +1,6 @@
-# Food to Recipe Generator using CLIP + Transformer
+# Food to Recipe Generator using Qwen2.5-VL
 
-A deep learning system that generates cooking recipes from food images using CLIP (Vision Transformer) and GPT-2 (Text Transformer) architectures.
+A deep learning system that generates cooking recipes from food images using **Qwen2.5-VL-3B-Instruct**, a native vision-language model.
 
 ![Project Banner](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
@@ -33,19 +33,16 @@ This project implements a cross-modal translation model that:
 
 ### Model Components
 
-1. **CLIP Image Encoder (ViT-B/32)**: Frozen pretrained model for visual feature extraction
-2. **Vision Projection Layer**: Projects CLIP embeddings to GPT-2 dimension
-3. **GPT-2 Decoder**: 6-layer transformer decoder for recipe text generation
-4. **Food Recognition**: CLIP-based zero-shot classifier for food identification
+1. **Qwen2.5-VL-3B-Instruct**: Native vision-language model that handles both image understanding and text generation
+2. **Fine-tuned on Recipe Dataset**: Model is fine-tuned on food image-recipe pairs
+3. **Multi-modal Understanding**: Directly processes images and generates structured recipe text
 
 ### Technical Details
 
-- **Total Parameters**: 233,583,873
-- **Trainable Parameters**: 82,306,560
-- **Frozen Parameters (CLIP)**: 151,277,313
-- **Embedding Dimension**: 768
-- **Context Length**: 1024 tokens
-- **Attention Heads**: 12
+- **Model**: Qwen2.5-VL-3B-Instruct (3 billion parameters)
+- **Vision Encoder**: Integrated vision transformer
+- **Language Model**: Qwen2.5 architecture with instruction tuning
+- **Training**: Fine-tuned on food recipe dataset with DeepSpeed ZeRO
 
 ## Installation
 
@@ -126,25 +123,32 @@ No installation, no setup - just try it in your browser! 🚀
 
 Open and run the Jupyter notebook:
 ```bash
-jupyter notebook Food_to_receipe.ipynb
+jupyter notebook Food_to_receipe_Qwen.ipynb
 ```
 
-Run cells 1-26 to:
+Run cells to:
 1. Load and preprocess the dataset
-2. Initialize CLIP and GPT-2 models
-3. Train the recipe generator
+2. Initialize Qwen2.5-VL model
+3. Fine-tune on recipe dataset
 4. Monitor training/validation loss
 5. Save model checkpoint
 
 ### Using the Web Interface
 
-1. After training, run cells 43-47 to create the Gradio interface
-2. Run cell 49 to launch the web server:
-```python
-demo.launch(server_port=None, inbrowser=True)
+**Option 1: Standalone Python Script**
+```bash
+python app_qwen.py
 ```
-3. Upload a food image through the web interface
-4. Click "Generate Recipe" to get the recipe
+
+**Option 2: Jupyter Notebook**
+1. Run the notebook cells to load the model
+2. Run the Gradio interface cell (Section 16)
+3. Launch the web server:
+```python
+demo.launch(server_port=7860)
+```
+4. Upload a food image through the web interface
+5. Click "Generate Recipe" to get the recipe
 
 ### Output Format
 
