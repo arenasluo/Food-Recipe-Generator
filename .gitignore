@@ -33,14 +33,25 @@ env/
 *.pt
 *.pth
 *.ckpt
-*.bin
 *.pkl
 recipe_generator_model.pt
+# Exclude model directories (too large for git)
+qwen_recipe_model_final/
+qwen_recipe_output/
+janus_recipe_model_final/
+janus_recipe_output/
+*.safetensors
+# Keep .bin files for configs but exclude large model binaries
+training_args.bin
 
-# Data files (uncomment if you don't want to upload data)
-# *.csv
-# *.zip
-# food_images/
+# Data files - exclude dataset files
+*.csv
+*.zip
+food_images/
+RecipeNLG_dataset.csv
+RecipeNLG_dataset.csv.zip
+Food Ingredients and Recipe Dataset with Image Name Mapping.csv
+recipe_image_mapping.csv
 
 # IDE
 .vscode/
@@ -62,3 +73,9 @@ Thumbs.db
 
 # Cache
 .cache/
+.gradio/
+
+# Large output files
+training_metrics/
+*.png
+evaluation_metrics.json
