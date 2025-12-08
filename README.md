@@ -1,6 +1,6 @@
-# Food to Recipe Generator using Qwen2.5-VL
+# Food to Recipe Generation: Vision-Language Models for Recipe Generation
 
-A deep learning system that generates cooking recipes from food images using **Qwen2.5-VL-3B-Instruct**, a native vision-language model.
+A deep learning system that generates cooking recipes from food images using state-of-the-art vision-language models. This project implements and compares two approaches: (1) CLIP + GPT-2 Transformer, and (2) Qwen2.5-VL-3B-Instruct fine-tuning.
 
 ![Project Banner](https://img.shields.io/badge/Python-3.8+-blue.svg)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)
@@ -14,50 +14,70 @@ Upload a food image and get an AI-generated recipe instantly!
 
 ## Overview
 
-This project implements a cross-modal translation model that:
-- Takes images of food as input
-- Recognizes what food is in the image using CLIP zero-shot classification
-- Generates complete recipes with ingredients and cooking instructions
-- Uses visual information (ingredients, cooking method, presentation) to create structured recipe text
+This project implements cross-modal translation models that:
+- Take images of food as input
+- Generate complete recipes with titles, ingredients, and step-by-step cooking instructions
+- Use visual information (ingredients, cooking method, presentation) to create structured recipe text
+- Evaluate recipe quality using multiple metrics (ROUGE-L, BLEU, FIRE-style component metrics)
+
+## Two Approaches Implemented
+
+### Approach 1: CLIP + GPT-2 Transformer (`Food_to_receipe.ipynb`)
+
+**Architecture:**
+- **Vision Encoder**: OpenAI CLIP (frozen) to extract visual features from food images
+- **Text Decoder**: GPT-2 Transformer fine-tuned on recipe text
+- **Training**: Only the GPT-2 decoder is trained; CLIP encoder remains frozen
+
+**Key Features:**
+- Modular design separating vision and language components
+- Efficient training (only decoder parameters updated)
+- Good baseline for comparison
+
+### Approach 2: Qwen2.5-VL-3B-Instruct (`Food_to_receipe_Qwen.ipynb`) ⭐ **Recommended**
+
+**Architecture:**
+- **Model**: Qwen2.5-VL-3B-Instruct (3.75B parameters)
+- **Type**: Native vision-language model that handles both image understanding and text generation
+- **Training**: End-to-end fine-tuning with LoRA (Low-Rank Adaptation) for efficiency
+
+**Key Features:**
+- **Native Vision-Language Model**: Unified architecture for better image-text alignment
+- **Instruction-Tuned**: Better at following prompts and generating structured recipes
+- **Memory Efficient**: LoRA fine-tuning reduces memory requirements
+- **Multi-GPU Support**: Optimized for training with DeepSpeed ZeRO Stage 3
+- **Better Performance**: Achieves higher scores on evaluation metrics
 
 ## Features
 
-- **Food Recognition**: Automatically identifies 100+ food categories using CLIP zero-shot classification
-- **Recipe Generation**: Generates detailed recipes with ingredients and step-by-step instructions
+- **Food Recognition**: Automatically identifies food items and visual characteristics
+- **Recipe Generation**: Generates detailed recipes with:
+  - Recipe titles
+  - Complete ingredient lists with amounts
+  - Step-by-step cooking instructions
+- **Comprehensive Evaluation**: 
+  - ROUGE-L and BLEU scores for overall quality
+  - FIRE-style component metrics (Title LCS, Ingredient Precision/Recall/F1, Instruction ROUGE-L/BLEU)
+  - Training/validation loss tracking
 - **Web Interface**: Interactive Gradio-based web UI for easy recipe generation
-- **Multi-GPU Support**: Efficient training on multiple GPUs
-- **Smart Post-Processing**: Removes repetitions and formats output into clean SOP structure
-- **Hyperparameter Tracking**: Monitor training loss and experiment with different configurations
-
-## Architecture
-
-### Model Components
-
-1. **Qwen2.5-VL-3B-Instruct**: Native vision-language model that handles both image understanding and text generation
-2. **Fine-tuned on Recipe Dataset**: Model is fine-tuned on food image-recipe pairs
-3. **Multi-modal Understanding**: Directly processes images and generates structured recipe text
-
-### Technical Details
-
-- **Model**: Qwen2.5-VL-3B-Instruct (3 billion parameters)
-- **Vision Encoder**: Integrated vision transformer
-- **Language Model**: Qwen2.5 architecture with instruction tuning
-- **Training**: Fine-tuned on food recipe dataset with DeepSpeed ZeRO
+- **Multi-GPU Support**: Efficient training on multiple GPUs with DeepSpeed
+- **Memory Optimization**: Gradient checkpointing, mixed precision (BF16/FP16), and CPU offloading
 
 ## Installation
 
 ### Prerequisites
 
 - Python 3.8 or higher
-- CUDA-capable GPU (recommended)
+- CUDA-capable GPU (recommended, 16GB+ VRAM)
 - At least 16GB RAM
 
 ### Setup
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/CLIP-Transformer.git
-cd CLIP-Transformer
+git clone https://github.gatech.edu/fgao70/DL_group_project.git
+cd DL_group_project
+git checkout wluo79
 ```
 
 2. Create a virtual environment:
@@ -75,21 +95,26 @@ pip install -r requirements.txt
 
 - PyTorch 2.0+
 - Transformers (Hugging Face)
-- CLIP (OpenAI)
+- CLIP (OpenAI) - for Approach 1
+- Qwen-VL - for Approach 2
 - Gradio
 - Pillow
 - Pandas
 - NumPy
 - Matplotlib
 - Seaborn
+- rouge-score
+- sacrebleu
+- accelerate
+- deepspeed
+- peft (for LoRA)
 
 ## Dataset
 
 The project uses the **Food Ingredients and Recipe Dataset with Image Name Mapping** which contains:
-- 13,501 recipes
-- Recipe titles, ingredients, and instructions
-- Image file names for matching
-- 13,582 food images
+- **13,501 recipes** with titles, ingredients, and instructions
+- **13,471 successfully matched food images**
+- Recipe format: Structured text with title, ingredients list, and step-by-step instructions
 
 ### Dataset Structure
 ```
@@ -119,30 +144,35 @@ No installation, no setup - just try it in your browser! 🚀
 
 ---
 
-### Training the Model
+### Training the Models
+
+#### Approach 1: CLIP + GPT-2
+
+Open and run the Jupyter notebook:
+```bash
+jupyter notebook Food_to_receipe.ipynb
+```
+
+#### Approach 2: Qwen2.5-VL-3B (Recommended)
 
 Open and run the Jupyter notebook:
 ```bash
 jupyter notebook Food_to_receipe_Qwen.ipynb
 ```
 
-Run cells to:
+**Training Steps:**
 1. Load and preprocess the dataset
-2. Initialize Qwen2.5-VL model
+2. Initialize the model (CLIP+GPT2 or Qwen2.5-VL)
 3. Fine-tune on recipe dataset
 4. Monitor training/validation loss
-5. Save model checkpoint
+5. Evaluate on test set with comprehensive metrics
+6. Save model checkpoint
 
 ### Using the Web Interface
 
-**Option 1: Standalone Python Script**
-```bash
-python app_qwen.py
-```
-
-**Option 2: Jupyter Notebook**
+**Jupyter Notebook:**
 1. Run the notebook cells to load the model
-2. Run the Gradio interface cell (Section 16)
+2. Run the Gradio interface cell (Section 16 in Qwen notebook)
 3. Launch the web server:
 ```python
 demo.launch(server_port=7860)
@@ -154,7 +184,6 @@ demo.launch(server_port=7860)
 
 ```
 RECIPE: GRILLED CHICKEN
-(Recognized as: Grilled Chicken)
 
 ============================================================
 
@@ -182,86 +211,109 @@ refinement. Please verify ingredients and instructions before cooking.
 
 ## Training Details
 
-### Hyperparameters
+### Qwen2.5-VL-3B Fine-Tuning (Approach 2)
 
-- **Batch Size**: 4
+**Hyperparameters:**
+- **Batch Size**: 1 per GPU (with gradient accumulation of 128 for effective batch size of 128)
 - **Learning Rate**: 5e-5
 - **Epochs**: 5
 - **Warmup Steps**: 100
 - **Optimizer**: AdamW
 - **Scheduler**: Linear warmup with decay
+- **Mixed Precision**: BF16 (if supported) or FP16
+- **DeepSpeed**: ZeRO Stage 3 with CPU offloading for memory efficiency
+- **LoRA**: Low-rank adaptation for efficient fine-tuning
 
-### Training Performance
-
-- **Dataset Size**: 1000 samples (for initial testing)
+**Training Performance:**
+- **Dataset Size**: 500 training samples (for memory efficiency)
 - **Train/Test Split**: 80/20
 - **Final Train Loss**: ~2.74
 - **Final Validation Loss**: ~2.89
 
-### Training Curve
+### CLIP + GPT-2 (Approach 1)
 
-The model shows good convergence with decreasing loss over epochs:
-- Epoch 1: Train Loss 5.72, Val Loss 4.03
-- Epoch 5: Train Loss 2.74, Val Loss 2.89
+**Hyperparameters:**
+- **Batch Size**: 4
+- **Learning Rate**: 5e-5
+- **Epochs**: 5
+- **Optimizer**: AdamW
+- **Frozen Components**: CLIP encoder (only GPT-2 decoder trained)
 
-## Advanced Features
+## Evaluation Metrics
 
-### Food Recognition
+### Overall Metrics
+- **ROUGE-L**: Measures semantic similarity between generated and ground truth recipes
+- **BLEU**: Measures n-gram overlap for exact word matching
 
-The system can recognize 100+ food categories including:
-- Proteins (chicken, beef, fish, etc.)
-- Pasta & Grains
-- Soups & Stews
-- Desserts
-- International cuisines
+### FIRE-Style Component Metrics
+- **Title LCS**: Longest Common Subsequence for title evaluation
+- **Ingredient Precision/Recall/F1**: Set-based metrics for ingredient extraction
+- **Instruction ROUGE-L/BLEU**: Metrics specifically for cooking instructions
 
-### Generation Parameters
+See `METRICS_COMPARISON_WITH_FIRE.md` for detailed comparison with the FIRE paper.
 
-Adjust these in the code for different outputs:
-- `temperature`: 0.9 (higher = more creative)
-- `top_k`: 100 (top-k sampling)
-- `top_p`: 0.92 (nucleus sampling)
-- `repetition_penalty`: 1.5
+## Results
+
+### Quantitative Results
+
+**Qwen2.5-VL-3B Approach:**
+- Better overall performance on evaluation metrics
+- Higher ROUGE-L and BLEU scores
+- Better ingredient identification (Ingredient F1)
+- More coherent recipe generation
+
+**CLIP + GPT-2 Approach:**
+- Good baseline performance
+- Efficient training (only decoder parameters)
+- Modular architecture allows for component swapping
+
+### Qualitative Results
+
+Both models successfully:
+- Learn to associate visual features with recipe text
+- Generate structured recipes with ingredients and instructions
+- Identify food categories with reasonable accuracy
+- Handle diverse food types and cooking styles
 
 ## Project Structure
 
 ```
 CLIP+Transformer/
-├── Food_to_receipe.ipynb          # Main notebook
-├── recipe_generator_model.pt       # Trained model checkpoint
-├── requirements.txt                # Python dependencies
-├── .gitignore                      # Git ignore file
-├── README.md                       # This file
-├── food_images/                    # Food images directory
+├── Food_to_receipe.ipynb              # CLIP + GPT-2 approach
+├── Food_to_receipe_Qwen.ipynb          # Qwen2.5-VL-3B approach (recommended)
+├── Food_to_receipe_Deep_seek_Janus_1B.ipynb  # Additional experiments
+├── Food_to_receipe_Minimax_M1.ipynb    # Additional experiments
+├── ds_config.json                      # DeepSpeed configuration
+├── requirements.txt                    # Python dependencies
+├── README.md                           # This file
+├── PROJECT_SUMMARY.md                  # Plain-language project summary
+├── IMPLEMENTATION_DETAILS.md          # Technical implementation details
+├── EVALUATION_AND_RESULTS.md          # Evaluation methodology and results
+├── METRICS_COMPARISON_WITH_FIRE.md    # Comparison with FIRE paper
+├── food_images/                        # Food images directory
 │   └── Food Images/
+├── qwen_recipe_model_final/           # Fine-tuned Qwen model
+├── janus_recipe_model_final/          # Fine-tuned Janus model
 └── Food Ingredients and Recipe Dataset with Image Name Mapping.csv
 ```
 
-## Results
-
-The model successfully:
-- Learns to associate visual features with recipe text
-- Generates structured recipes with ingredients and instructions
-- Identifies food categories with high accuracy
-- Handles diverse food types and cooking styles
-
 ## Limitations
 
-- Generated recipes may need refinement
-- Model trained on limited dataset (1000 samples)
+- Generated recipes may need refinement for actual cooking
+- Model trained on limited dataset (500-1000 samples for memory efficiency)
 - Some repetition in generated text (mitigated by post-processing)
 - Quality depends on image clarity and food visibility
+- Evaluation metrics may not capture all aspects of recipe quality
 
 ## Future Improvements
 
-1. Train on larger dataset (all 13,501 recipes)
-2. Experiment with different CLIP models (ViT-L/14)
-3. Try different decoder architectures (T5, BART)
-4. Add attention mechanisms for better image-text alignment
-5. Implement beam search for better generation quality
-6. Add recipe evaluation metrics (BLEU, ROUGE)
-7. Fine-tune CLIP encoder for better food understanding
-8. Add data augmentation for robustness
+1. Train on full dataset (all 13,501 recipes)
+2. Experiment with larger models (Qwen2.5-VL-7B, Qwen2.5-VL-14B)
+3. Implement beam search for better generation quality
+4. Add more sophisticated evaluation metrics
+5. Fine-tune vision encoder for better food understanding
+6. Add data augmentation for robustness
+7. Implement recipe validation and refinement steps
 
 ## Contributing
 
@@ -273,9 +325,11 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Acknowledgments
 
-- OpenAI CLIP for vision-language understanding
-- Hugging Face Transformers for GPT-2 implementation
-- Gradio for the web interface
+- **Qwen Team** for Qwen2.5-VL models
+- **OpenAI** for CLIP vision-language model
+- **Hugging Face** for Transformers library and infrastructure
+- **DeepSpeed Team** for memory-efficient training
+- **Gradio** for the web interface
 - Dataset creators for the food recipes and images
 
 ## Citation
@@ -285,10 +339,10 @@ If you use this project in your research, please cite:
 ```bibtex
 @misc{food-recipe-generator,
   author = {Weijun Luo},
-  title = {Food to Recipe Generator using CLIP + Transformer},
+  title = {Food to Recipe Generator using Vision-Language Models},
   year = {2025},
   publisher = {GitHub},
-  url = {https://github.com/arenasluo/CLIP-Transformer}
+  url = {https://github.gatech.edu/fgao70/DL_group_project}
 }
 ```
 
