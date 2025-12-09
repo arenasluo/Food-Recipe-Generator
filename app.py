@@ -223,7 +223,8 @@ def generate_recipe_for_web(uploaded_image):
     except Exception as e:
         return f"❌ Error generating recipe: {str(e)}\n\nPlease try again with a different image."
 
-# Create Gradio interface (without theme parameter for compatibility)
+# Create Gradio interface (without theme parameter for compatibility with older Gradio versions)
+# Note: theme parameter is not supported in Gradio < 4.0, so we omit it for compatibility
 with gr.Blocks(title="Food to Recipe Generator") as demo:
     gr.Markdown("""
     # 🍽️ Food to Recipe Generator
