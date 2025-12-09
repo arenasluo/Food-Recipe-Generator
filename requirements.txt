@@ -11,7 +11,7 @@ peft>=0.8.0
 qwen-vl-utils>=0.0.5
 
 # Web Interface
-gradio>=4.0.0
+gradio>=5.0.0
 
 # Image Processing
 Pillow>=10.0.0
