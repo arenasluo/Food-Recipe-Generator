@@ -15,6 +15,14 @@ from transformers import (
     GPT2LMHeadModel, GPT2Tokenizer, GPT2Config
 )
 
+# For loading model from Model Hub
+try:
+    from huggingface_hub import hf_hub_download
+    HF_HUB_AVAILABLE = True
+except ImportError:
+    HF_HUB_AVAILABLE = False
+    print("⚠️ huggingface_hub not available, will try local model file only")
+
 # Set device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
