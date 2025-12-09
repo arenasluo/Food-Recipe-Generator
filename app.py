@@ -20,89 +20,78 @@ try:
     PEFT_AVAILABLE = True
 except ImportError:
     PEFT_AVAILABLE = False
-    print("⚠️ PEFT not available, will use base model only")
 
-# For loading model from Model Hub
 try:
-    from huggingface_hub import hf_hub_download, snapshot_download
+    from huggingface_hub import snapshot_download
     HF_HUB_AVAILABLE = True
 except ImportError:
     HF_HUB_AVAILABLE = False
-    print("⚠️ huggingface_hub not available")
 
-# Set device
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Using device: {device}")
+# Global variables for lazy loading
+model = None
+processor = None
+model_loaded_with_lora = False
 
 # Model configuration
 BASE_MODEL_NAME = "Qwen/Qwen2.5-VL-3B-Instruct"
-LORA_ADAPTER_REPO = "arenasluo/qwen-recipe-lora"  # Will create this
+LORA_ADAPTER_REPO = "arenasluo/qwen-recipe-lora"
 
-# Load model
-print("Loading Qwen2.5-VL model...")
-print("This may take a few minutes on first run...")
+def load_model():
+    """Lazy load the model only when first needed."""
+    global model, processor, model_loaded_with_lora
 
-# Try to load fine-tuned LoRA adapter from Hugging Face
-model_loaded_with_lora = False
+    if model is not None:
+        return  # Already loaded
 
-if HF_HUB_AVAILABLE and PEFT_AVAILABLE:
-    try:
-        print(f"Attempting to load LoRA adapter from {LORA_ADAPTER_REPO}...")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    print("Loading Qwen2.5-VL model...")
 
-        # Download LoRA adapter
-        adapter_path = snapshot_download(
-            repo_id=LORA_ADAPTER_REPO,
-            allow_patterns=["adapter_*", "*.json"]
-        )
+    # Try to load fine-tuned LoRA adapter
+    if HF_HUB_AVAILABLE and PEFT_AVAILABLE:
+        try:
+            print(f"Attempting to load LoRA adapter from {LORA_ADAPTER_REPO}...")
+            adapter_path = snapshot_download(
+                repo_id=LORA_ADAPTER_REPO,
+                allow_patterns=["adapter_*", "*.json"]
+            )
 
-        # Load base model
-        base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                BASE_MODEL_NAME,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto" if torch.cuda.is_available() else None
+            )
+
+            model = PeftModel.from_pretrained(base_model, adapter_path)
+            model = model.merge_and_unload()
+            model_loaded_with_lora = True
+            print("✓ Model loaded with fine-tuned LoRA adapter")
+        except Exception as e:
+            print(f"Could not load LoRA adapter: {e}")
+            print("Falling back to base model...")
+            model = None
+
+    # Fallback to base model
+    if model is None:
+        print("Loading base Qwen2.5-VL model...")
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             BASE_MODEL_NAME,
             torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
             device_map="auto" if torch.cuda.is_available() else None
         )
+        print("✓ Base model loaded")
 
-        # Load LoRA adapter
-        model = PeftModel.from_pretrained(base_model, adapter_path)
-        model = model.merge_and_unload()  # Merge LoRA weights for faster inference
-        model_loaded_with_lora = True
-        print("✓ Model loaded with fine-tuned LoRA adapter")
-
-    except Exception as e:
-        print(f"Could not load LoRA adapter: {e}")
-        print("Falling back to base model...")
-        model = None
-
-# Fallback to base model if LoRA loading failed
-if model is None:
-    print("Loading base Qwen2.5-VL model...")
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        BASE_MODEL_NAME,
-        torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-        device_map="auto" if torch.cuda.is_available() else None
-    )
-    print("✓ Base model loaded (no fine-tuning)")
-
-# Load processor
-processor = AutoProcessor.from_pretrained(BASE_MODEL_NAME)
-
-# Set model to eval mode
-model.eval()
-
-print(f"✓ Model ready! (LoRA fine-tuned: {model_loaded_with_lora})")
+    # Load processor
+    processor = AutoProcessor.from_pretrained(BASE_MODEL_NAME)
+    model.eval()
+    print(f"✓ Model ready! (LoRA fine-tuned: {model_loaded_with_lora})")
 
 def generate_recipe_from_image(image, max_new_tokens=2048):
-    """
-    Generate a recipe from a food image using Qwen2.5-VL.
-
-    Args:
-        image: PIL Image or path to image
-        max_new_tokens: Maximum number of tokens to generate
-
-    Returns:
-        str: Generated recipe
-    """
+    """Generate a recipe from a food image using Qwen2.5-VL."""
     try:
+        # Lazy load model on first use
+        load_model()
+
         if image is None:
             return "⚠️ Please upload an image."
 
@@ -149,15 +138,12 @@ def generate_recipe_from_image(image, max_new_tokens=2048):
         )
 
         # Move to device
+        device = next(model.parameters()).device
         inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v
                   for k, v in inputs.items()}
 
-        # Set pad token if not set
-        if processor.tokenizer.pad_token_id is None:
-            pad_token_id = processor.tokenizer.eos_token_id
-        else:
-            pad_token_id = processor.tokenizer.pad_token_id
-
+        # Set pad token
+        pad_token_id = processor.tokenizer.pad_token_id or processor.tokenizer.eos_token_id
         eos_token_id = processor.tokenizer.eos_token_id
 
         # Generate recipe
@@ -176,8 +162,6 @@ def generate_recipe_from_image(image, max_new_tokens=2048):
         # Decode only the newly generated tokens
         input_length = inputs['input_ids'].shape[1]
         generated_tokens = generated_ids[0][input_length:]
-
-        # Decode
         recipe = processor.decode(generated_tokens, skip_special_tokens=True)
 
         # Format output
@@ -189,21 +173,20 @@ def generate_recipe_from_image(image, max_new_tokens=2048):
         output += "Please verify ingredients and instructions before cooking.\n"
 
         if not model_loaded_with_lora:
-            output += "\n*Using base model without fine-tuning. "
-            output += "Results may vary in quality.*"
+            output += "\n*Using base model without fine-tuning. Results may vary in quality.*"
 
         return output
 
     except Exception as e:
         error_msg = f"❌ Error generating recipe: {str(e)}\n\n"
-        error_msg += "Please try again with a different image or contact support if the issue persists."
-        print(f"Error in generate_recipe_from_image: {e}")
+        error_msg += "Please try again with a different image."
+        print(f"Error: {e}")
         import traceback
         traceback.print_exc()
         return error_msg
 
 # Create Gradio interface
-with gr.Blocks(title="Food to Recipe Generator - Qwen2.5-VL") as demo:
+with gr.Blocks(title="Food to Recipe Generator") as demo:
     gr.Markdown("""
     # 🍽️ Food to Recipe Generator
     ### Powered by Qwen2.5-VL Vision-Language Model
@@ -272,12 +255,5 @@ with gr.Blocks(title="Food to Recipe Generator - Qwen2.5-VL") as demo:
     )
 
 if __name__ == "__main__":
-    print("\n" + "=" * 60)
-    print("Starting Food to Recipe Generator - Qwen2.5-VL Edition")
-    print("=" * 60 + "\n")
-
-    demo.launch(
-        server_name="0.0.0.0",
-        server_port=7860,
-        share=False
-    )
+    print("Starting Food to Recipe Generator...")
+    demo.launch()
