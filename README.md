@@ -1,3 +1,15 @@
+---
+title: Food to Recipe Generator
+emoji: 🍽️
+colorFrom: blue
+colorTo: red
+sdk: gradio
+sdk_version: 5.0.0
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # Food to Recipe Generation: Vision-Language Models for Recipe Generation
 
 A deep learning system that generates cooking recipes from food images using state-of-the-art vision-language models. This project implements and compares two approaches: (1) CLIP + GPT-2 Transformer, and (2) Qwen2.5-VL-3B-Instruct fine-tuning.
