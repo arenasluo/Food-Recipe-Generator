@@ -1,19 +1,30 @@
 {
   "zero_optimization": {
-    "stage": 2,
+    "stage": 3,
     "offload_optimizer": {
       "device": "cpu",
       "pin_memory": true
     },
+    "offload_param": {
+      "device": "cpu",
+      "pin_memory": true
+    },
     "overlap_comm": true,
-    "contiguous_gradients": true
+    "contiguous_gradients": true,
+    "reduce_bucket_size": 50000000.0,
+    "stage3_prefetch_bucket_size": 50000000.0,
+    "stage3_param_persistence_threshold": 100000.0
   },
   "gradient_accumulation_steps": 128,
   "gradient_clipping": 1.0,
   "train_micro_batch_size_per_gpu": 1,
   "train_batch_size": "auto",
   "fp16": {
+    "enabled": false
+  },
+  "bf16": {
     "enabled": true
   },
-  "steps_per_print": 10
+  "steps_per_print": 10,
+  "wall_clock_breakdown": false
 }
