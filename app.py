@@ -251,8 +251,7 @@ with gr.Blocks(title="Food to Recipe Generator") as demo:
                 label="Generated Recipe",
                 lines=20,
                 max_lines=30,
-                placeholder="Your recipe will appear here...",
-                show_copy_button=True
+                placeholder="Your recipe will appear here..."
             )
     
     # Connect the function to the interface
