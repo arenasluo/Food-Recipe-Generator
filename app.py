@@ -203,19 +203,23 @@ def generate_recipe_for_web(uploaded_image):
                 start_text = "Title: Ingredients: Instructions:"
                 start_tokens = tokenizer.encode(start_text, return_tensors="pt", add_special_tokens=False)
                 start_token_id = start_tokens[0][0].item() if len(start_tokens[0]) > 0 else tokenizer.eos_token_id
-            
-            prev_token = torch.tensor([[start_token_id]], device=device)
-            
+
+            # Start with initial token
+            generated_ids = [start_token_id]
+            input_ids = torch.tensor([generated_ids], device=device)
+
             # Track recent tokens to detect repetition
             recent_tokens = []
             repetition_threshold = 4
             repetition_window = 8
-            
+
             # Generate tokens
             for step in range(512):  # Max 512 tokens
-                inputs_embeds = model.gpt2.transformer.wte(prev_token)
+                # Get embeddings for ALL generated tokens so far
+                inputs_embeds = model.gpt2.transformer.wte(input_ids)
+                # Prepend vision features only once at the beginning
                 combined_embeds = torch.cat([vision_features, inputs_embeds], dim=1)
-                
+
                 outputs = model.gpt2(inputs_embeds=combined_embeds)
                 logits = outputs.logits[:, -1, :]
                 
@@ -302,14 +306,15 @@ def generate_recipe_for_web(uploaded_image):
                                 next_token = torch.argmax(original_logits, dim=-1, keepdim=True)
                 
                 generated_ids.append(next_token.item())
-                prev_token = next_token
-                
+                # Update input_ids to include all generated tokens
+                input_ids = torch.tensor([generated_ids], device=device)
+
                 # Stop if EOS token
                 if next_token.item() == tokenizer.eos_token_id:
                     break
             
-            # Decode generated tokens
-            generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+            # Decode generated tokens (skip the first start token)
+            generated_text = tokenizer.decode(generated_ids[1:], skip_special_tokens=True)
             
             # Post-process: Remove repetitions and format
             lines = generated_text.split('\n')
