@@ -51,40 +51,62 @@ def load_model():
     if HF_HUB_AVAILABLE and PEFT_AVAILABLE:
         try:
             print(f"Attempting to load LoRA adapter from {LORA_ADAPTER_REPO}...")
-            adapter_path = snapshot_download(
-                repo_id=LORA_ADAPTER_REPO,
-                allow_patterns=["adapter_*", "*.json"]
-            )
+            from huggingface_hub import HfApi
+            api = HfApi()
+            
+            # Check if repository exists
+            try:
+                api.repo_info(repo_id=LORA_ADAPTER_REPO, repo_type="model")
+                adapter_path = snapshot_download(
+                    repo_id=LORA_ADAPTER_REPO,
+                    allow_patterns=["adapter_*", "*.json"],
+                    local_files_only=False
+                )
 
-            base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-                BASE_MODEL_NAME,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto" if torch.cuda.is_available() else None
-            )
+                base_model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                    BASE_MODEL_NAME,
+                    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                    device_map="auto" if torch.cuda.is_available() else None
+                )
 
-            model = PeftModel.from_pretrained(base_model, adapter_path)
-            model = model.merge_and_unload()
-            model_loaded_with_lora = True
-            print("✓ Model loaded with fine-tuned LoRA adapter")
+                model = PeftModel.from_pretrained(base_model, adapter_path)
+                model = model.merge_and_unload()
+                model_loaded_with_lora = True
+                print("✓ Model loaded with fine-tuned LoRA adapter")
+            except Exception as repo_error:
+                print(f"LoRA adapter repository not found or inaccessible: {repo_error}")
+                print("Falling back to base model...")
+                model = None
         except Exception as e:
             print(f"Could not load LoRA adapter: {e}")
             print("Falling back to base model...")
             model = None
+    else:
+        print("LoRA loading not available (missing dependencies)")
+        model = None
 
     # Fallback to base model
     if model is None:
         print("Loading base Qwen2.5-VL model...")
-        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            BASE_MODEL_NAME,
-            torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-            device_map="auto" if torch.cuda.is_available() else None
-        )
-        print("✓ Base model loaded")
+        try:
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                BASE_MODEL_NAME,
+                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
+                device_map="auto" if torch.cuda.is_available() else None
+            )
+            print("✓ Base model loaded")
+        except Exception as e:
+            print(f"Error loading base model: {e}")
+            raise
 
     # Load processor
-    processor = AutoProcessor.from_pretrained(BASE_MODEL_NAME)
-    model.eval()
-    print(f"✓ Model ready! (LoRA fine-tuned: {model_loaded_with_lora})")
+    try:
+        processor = AutoProcessor.from_pretrained(BASE_MODEL_NAME)
+        model.eval()
+        print(f"✓ Model ready! (LoRA fine-tuned: {model_loaded_with_lora})")
+    except Exception as e:
+        print(f"Error loading processor: {e}")
+        raise
 
 def generate_recipe_from_image(image, max_new_tokens=2048):
     """Generate a recipe from a food image using Qwen2.5-VL."""
