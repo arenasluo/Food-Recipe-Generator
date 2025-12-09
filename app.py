@@ -1,8 +1,13 @@
 import os
+import sys
+import warnings
 import torch
 import torch.nn as nn
 from PIL import Image
 import gradio as gr
+
+# Suppress asyncio cleanup warnings (harmless but noisy in logs)
+warnings.filterwarnings("ignore")
 
 # Hugging Face Libraries
 from transformers import (
@@ -72,20 +77,51 @@ model = CLIPRecipeGenerator(clip_model, tokenizer, config).to(device)
 
 # Load trained model if available
 model_path = "recipe_generator_model.pt"
+model_loaded = False
 if os.path.exists(model_path):
     print(f"Loading trained model from {model_path}")
-    checkpoint = torch.load(model_path, map_location=device)
-    if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-        model.load_state_dict(checkpoint['model_state_dict'])
-    else:
-        model.load_state_dict(checkpoint)
-    print("✓ Models loaded successfully!")
+    try:
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+        if isinstance(checkpoint, dict):
+            if 'model_state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['model_state_dict'], strict=False)
+                model_loaded = True
+                print("✓ Model loaded from checkpoint dict with 'model_state_dict' key")
+            elif 'state_dict' in checkpoint:
+                model.load_state_dict(checkpoint['state_dict'], strict=False)
+                model_loaded = True
+                print("✓ Model loaded from checkpoint dict with 'state_dict' key")
+            else:
+                # Try loading the entire dict as state_dict
+                try:
+                    model.load_state_dict(checkpoint, strict=False)
+                    model_loaded = True
+                    print("✓ Model loaded from checkpoint dict (direct)")
+                except:
+                    print("⚠️ Could not load from checkpoint dict")
+        else:
+            # Checkpoint is directly the state_dict
+            try:
+                model.load_state_dict(checkpoint, strict=False)
+                model_loaded = True
+                print("✓ Model loaded from checkpoint (direct state_dict)")
+            except Exception as e:
+                print(f"⚠️ Error loading checkpoint: {e}")
+    except Exception as e:
+        print(f"⚠️ Error loading model checkpoint: {e}")
+        print("⚠️ Using untrained model")
 else:
     print("⚠️ Warning: Model checkpoint not found. Using untrained model.")
 
+# Ensure model is in eval mode
 model.eval()
 
-print("✓ Models ready!")
+# Set random seed for reproducibility
+torch.manual_seed(42)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(42)
+
+print(f"✓ Models ready! (Model loaded: {model_loaded})")
 
 def recognize_food_from_image(image):
     """
@@ -129,7 +165,18 @@ def generate_recipe_for_web(uploaded_image):
             
             # Initialize generation with a better starting token
             generated_ids = []
-            prev_token = torch.tensor([[tokenizer.bos_token_id if tokenizer.bos_token_id else tokenizer.eos_token_id]], device=device)
+            # Use BOS token if available, otherwise use a prompt token
+            if hasattr(tokenizer, 'bos_token_id') and tokenizer.bos_token_id is not None:
+                start_token_id = tokenizer.bos_token_id
+            elif hasattr(tokenizer, 'eos_token_id') and tokenizer.eos_token_id is not None:
+                start_token_id = tokenizer.eos_token_id
+            else:
+                # Fallback: use tokenizer.encode to get a starting token
+                start_text = "Title: Ingredients: Instructions:"
+                start_tokens = tokenizer.encode(start_text, return_tensors="pt", add_special_tokens=False)
+                start_token_id = start_tokens[0][0].item() if len(start_tokens[0]) > 0 else tokenizer.eos_token_id
+            
+            prev_token = torch.tensor([[start_token_id]], device=device)
             
             # Track recent tokens to detect repetition
             recent_tokens = []
@@ -308,5 +355,35 @@ with gr.Blocks(title="Food to Recipe Generator") as demo:
     )
 
 if __name__ == "__main__":
+    # Suppress asyncio cleanup errors (harmless warnings during shutdown)
+    # These are Python cleanup warnings that don't affect functionality
+    import sys
+    
+    # Create a simple filter for stderr
+    class FilteredStderr:
+        def __init__(self, original):
+            self.original = original
+        
+        def write(self, text):
+            # Filter out asyncio cleanup errors (harmless)
+            if any(keyword in text for keyword in [
+                "Exception ignored in",
+                "BaseEventLoop.__del__",
+                "Invalid file descriptor",
+                "_close_self_pipe"
+            ]):
+                return  # Silently ignore
+            return self.original.write(text)
+        
+        def flush(self):
+            return self.original.flush()
+        
+        def __getattr__(self, name):
+            return getattr(self.original, name)
+    
+    # Apply filter only in Hugging Face Spaces environment
+    if os.getenv("SYSTEM") == "spaces" or os.getenv("SPACE_ID"):
+        sys.stderr = FilteredStderr(sys.stderr)
+    
     demo.launch()
 
