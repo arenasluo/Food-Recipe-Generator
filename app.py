@@ -152,15 +152,25 @@ def generate_recipe_for_web(uploaded_image):
                 # Apply temperature
                 logits = logits / temperature
                 
+                # Check for invalid values and clamp if necessary
+                if torch.isnan(logits).any() or torch.isinf(logits).any():
+                    # If logits are invalid, use a simple argmax fallback
+                    next_token = torch.argmax(logits, dim=-1, keepdim=True)
+                    generated_ids.append(next_token.item())
+                    prev_token = next_token
+                    continue
+                
                 # Top-k filtering
                 if top_k > 0:
-                    indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1, None]
+                    top_k_value = min(top_k, logits.size(-1))
+                    indices_to_remove = logits < torch.topk(logits, top_k_value)[0][..., -1, None]
                     logits[indices_to_remove] = float('-inf')
                 
                 # Top-p (nucleus) filtering
                 if top_p < 1.0:
                     sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-                    cumulative_probs = torch.cumsum(torch.softmax(sorted_logits, dim=-1), dim=-1)
+                    sorted_probs = torch.softmax(sorted_logits, dim=-1)
+                    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
                     
                     # Remove tokens with cumulative probability above the threshold
                     sorted_indices_to_remove = cumulative_probs > top_p
@@ -171,8 +181,22 @@ def generate_recipe_for_web(uploaded_image):
                     logits[indices_to_remove] = float('-inf')
                 
                 # Sample from the filtered distribution
+                # Replace -inf with a very small value to avoid issues
+                logits = torch.clamp(logits, min=-1e10)
                 probs = torch.softmax(logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
+                
+                # Validate probabilities before sampling
+                if torch.isnan(probs).any() or torch.isinf(probs).any() or (probs < 0).any():
+                    # Fallback to argmax if probabilities are invalid
+                    next_token = torch.argmax(logits, dim=-1, keepdim=True)
+                else:
+                    # Ensure probabilities sum to approximately 1
+                    probs = probs / (probs.sum(dim=-1, keepdim=True) + 1e-10)
+                    try:
+                        next_token = torch.multinomial(probs, num_samples=1)
+                    except RuntimeError:
+                        # Fallback to argmax if multinomial fails
+                        next_token = torch.argmax(logits, dim=-1, keepdim=True)
                 
                 # Check for repetition
                 if len(recent_tokens) >= repetition_window:
@@ -183,9 +207,24 @@ def generate_recipe_for_web(uploaded_image):
                 if len(recent_tokens) >= repetition_threshold:
                     if len(set(recent_tokens[-repetition_threshold:])) == 1:
                         # Repetition detected, try to break it
+                        # Save original logits for fallback
+                        original_logits = logits.clone()
                         logits[0, next_token.item()] = float('-inf')
+                        
+                        # Replace -inf with a very small value
+                        logits = torch.clamp(logits, min=-1e10)
                         probs = torch.softmax(logits, dim=-1)
-                        next_token = torch.multinomial(probs, num_samples=1)
+                        
+                        # Validate probabilities
+                        if torch.isnan(probs).any() or torch.isinf(probs).any() or (probs < 0).any() or probs.sum() < 0.1:
+                            # If probabilities are invalid, use argmax on original logits
+                            next_token = torch.argmax(original_logits, dim=-1, keepdim=True)
+                        else:
+                            try:
+                                next_token = torch.multinomial(probs, num_samples=1)
+                            except RuntimeError:
+                                # Fallback to argmax if multinomial fails
+                                next_token = torch.argmax(original_logits, dim=-1, keepdim=True)
                 
                 generated_ids.append(next_token.item())
                 prev_token = next_token
