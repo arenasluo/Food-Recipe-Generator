@@ -75,9 +75,29 @@ config = GPT2Config(
 print("Creating CLIPRecipeGenerator model...")
 model = CLIPRecipeGenerator(clip_model, tokenizer, config).to(device)
 
-# Load trained model if available
-model_path = "recipe_generator_model.pt"
+# Load trained model - try Model Hub first, then local file
 model_loaded = False
+model_path = None
+
+# Try loading from Hugging Face Model Hub first
+if HF_HUB_AVAILABLE:
+    try:
+        print("Attempting to load model from Hugging Face Model Hub...")
+        model_path = hf_hub_download(
+            repo_id="arenasluo/recipe-generator-model",
+            filename="recipe_generator_model.pt",
+            cache_dir=None  # Download to current directory
+        )
+        print(f"✓ Model found on Model Hub: {model_path}")
+    except Exception as e:
+        print(f"Model not found on Model Hub: {e}")
+        model_path = None
+
+# Fallback to local file
+if model_path is None:
+    model_path = "recipe_generator_model.pt"
+
+# Load the model
 if os.path.exists(model_path):
     print(f"Loading trained model from {model_path}")
     try:
