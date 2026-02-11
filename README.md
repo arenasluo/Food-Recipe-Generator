@@ -354,7 +354,7 @@ If you use this project in your research, please cite:
   title = {Food to Recipe Generator using Vision-Language Models},
   year = {2025},
   publisher = {GitHub},
-  url = {https://github.gatech.edu/fgao70/DL_group_project}
+  url = {[https://github.gatech.edu/fgao70/DL_group_project](https://github.com/arenasluo/Food-Recipe-Generator)}
 }
 ```
 
